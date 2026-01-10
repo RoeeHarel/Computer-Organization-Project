@@ -12,8 +12,11 @@ typedef struct Instruction {
 	unsigned int imm;
 } Instruction;
 
+// Fetches each instruction
+void Fetch ();
+
 // Executes each instruction
-void Execute (Instruction* inst)
+void Execute (Instruction* inst);
 
 
 void Execute(Instruction* inst){
@@ -71,7 +74,7 @@ void Execute(Instruction* inst){
 	        break;
 	    case 21: // halt
 	        break;
-	    default:
+	    default: // need to implement
 	        break;
 	}
 }
@@ -79,6 +82,7 @@ void Execute(Instruction* inst){
 
 int main(int argc, char *argv[])
 {
-
+	Fetch();
+	Execute();
 	return 0;
 }
