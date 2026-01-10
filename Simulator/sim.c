@@ -4,6 +4,10 @@
 #include <limits.h>
 #include <math.h>
 
+#define TRUE 1
+#define FALSE 0
+#define MEM_SIZE 4096
+
 typedef struct Instruction {
 	unsigned int opcode;
 	unsigned int rs;
@@ -12,14 +16,32 @@ typedef struct Instruction {
 	unsigned int imm;
 } Instruction;
 
-// Fetches each instruction
+// --- Variable Initialization ---
+int pc = 0;
+
+
+// --- Function Initialization ---
+
+int inst_is_I_type(Instruction* inst);
+// returns TRUE if the instruction is I-type, and FALSE if it's R-type
+
 void Fetch ();
+// Fetches each instruction
 
-// Executes each instruction
 void Execute (Instruction* inst);
+// Executes each instruction
 
 
-void Execute(Instruction* inst){
+// --- Function Implementation ---
+
+int inst_is_I_type (Instruction* inst) {
+	return (inst->opcode >= 9 && inst->opcode <= 18) ? TRUE : FALSE;
+}
+
+void Fetch () {
+}
+
+void Execute(Instruction* inst) {
 	switch (inst->opcode) {
 		case 0: // add
 	        regs[inst->rd] = regs[inst->rs] + regs[inst->rt];
@@ -82,7 +104,17 @@ void Execute(Instruction* inst){
 
 int main(int argc, char *argv[])
 {
-	Fetch();
-	Execute();
+	// PC loop. maybe it's better to first read from memin.txt and finish the while loop at EOF
+	while (pc < MEM_SIZE) {
+		Fetch();
+		Execute();
+	
+		// advance PC by 2 if the instruction is I-type, or by 1 if it's R-type
+		pc += (inst_is_I_type(Instruction* inst)) ? 2 : 1;
+	}
+
+	//write into all the output files at the end of the program loop
+
+	
 	return 0;
 }
