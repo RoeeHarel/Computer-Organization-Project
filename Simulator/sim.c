@@ -7,6 +7,7 @@
 #define TRUE 1
 #define FALSE 0
 #define MEM_SIZE 4096
+#define DISK_SIZE 16384	//128 sectors * 128 lines
 
 typedef struct Instruction {
 	unsigned int opcode;
@@ -20,6 +21,8 @@ typedef struct Instruction {
 int pc = 0;
 unsigned int regs[16] = {0};
 unsigned int mainMem[MEM_SIZE] = {0}; 
+unsigned int hard_disk_arr[DISK_SIZE] = {0};
+unsigned int irq2_interrupt_cycles[MEM_SIZE] = { 0 }; // array of all the pc which has irq2in interrupt
 int branch_condition = FALSE; // A global variable used in the functions Execute() and AdvancePC()
 Instruction new_inst = {}; // initializing the variable for later use in Fetch()
 
@@ -35,14 +38,45 @@ void Execute (Instruction* inst);
 // Executes each instruction
 
 int AdvancePC(Instruction* inst);
-// advances pc according to the branch condtiion and type of the current instruction
+// advances pc according to the branch condition and type of the current instruction
 
+//Fills mainMem array, based on memin.txt file
+void FillmainMem(FILE * pmemin);
+
+//Fill hard_disk_arr, based on diskin.txt file
+void FillDiskinArr(FILE * pdiskin);
+
+//Fills irq2_interrupt_cycles array, based on irq2in.txt file
+void FillIrq2inArr(FILE * pirq2in);
 
 // --- Function Implementation ---
 
 int inst_is_I_type (Instruction* inst) {
 	return (inst->opcode >= 9 && inst->opcode <= 18) ? TRUE : FALSE;
 }
+// Setup Functions //
+void FillmainMem(FILE * pmemin) //TODO
+{
+
+}
+
+void FillDiskinArr(FILE * pdiskin)//TODO
+{
+	
+}
+
+void FillIrq2inArr(FILE * pirq2in)//TODO
+{
+	
+}
+void SetArrays(FILE * pdiskin, FILE * pmemin, FILE * pirq2in)
+{
+	FillmainMem(pmemin);
+	FillDiskinArr(pdiskin); 
+	FillIrq2inArr(pirq2in);
+	FillMonitorArr();//should be done in another place?
+}
+// Main process functions//
 
 Instruction Fetch () {
 	regs[1] = inst->imm; // I think this needs to be here, it affects my part of the code (Roee)
@@ -138,6 +172,9 @@ AdvancePC(Instruction* inst) {
 
 int main(int argc, char *argv[])
 {
+	FILE *memin = fopen(argv[1], "r"), *diskin = fopen(argv[2], "r"), *irq2in = fopen(argv[3], "r");//should add a write to all the output files
+	SetArrays(diskin, memin, irq2in);// I(Tal) think it should be here
+
 	// PC loop. maybe it's better to first read from memin.txt and finish the while loop at EOF
 	while (pc < MEM_SIZE) {
 		new_inst = Fetch();
