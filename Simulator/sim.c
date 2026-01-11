@@ -18,18 +18,24 @@ typedef struct Instruction {
 
 // --- Variable Initialization ---
 int pc = 0;
-
+unsigned int regs[16] = {0};
+unsigned int mainMem[MEM_SIZE] = {0}; 
+int branch_condition = FALSE; // A global variable used in the functions Execute() and AdvancePC()
+Instruction new_inst = {}; // initializing the variable for later use in Fetch()
 
 // --- Function Initialization ---
 
 int inst_is_I_type(Instruction* inst);
 // returns TRUE if the instruction is I-type, and FALSE if it's R-type
 
-void Fetch ();
+Instruction Fetch ();
 // Fetches each instruction
 
 void Execute (Instruction* inst);
 // Executes each instruction
+
+int AdvancePC(Instruction* inst);
+// advances pc according to the branch condtiion and type of the current instruction
 
 
 // --- Function Implementation ---
@@ -38,10 +44,13 @@ int inst_is_I_type (Instruction* inst) {
 	return (inst->opcode >= 9 && inst->opcode <= 18) ? TRUE : FALSE;
 }
 
-void Fetch () {
+Instruction Fetch () {
+	regs[1] = inst->imm; // I think this needs to be here, it affects my part of the code (Roee)
 }
 
 void Execute(Instruction* inst) {
+	int branch_condition = FALSE;
+	
 	switch (inst->opcode) {
 		case 0: // add
 	        regs[inst->rd] = regs[inst->rs] + regs[inst->rt];
@@ -64,23 +73,40 @@ void Execute(Instruction* inst) {
 	    case 6: // sll - Shifting rs by the value in rt
 	        regs[inst->rd] = regs[inst->rs] << regs[inst->rt];
 	        break;
-	    case 7: // sra (Shift Arithmetic Right) - Cast to signed int to ensure arithmetic shift (sign extension)
+	    case 7: // sra - Cast to signed int to ensure arithmetic shift (sign extension)
 	        regs[inst->rd] = (int)regs[inst->rs] >> regs[inst->rt];
 	        break;
 	    case 8: // srl - Cast to unsigned int to ensure logical shift (zero fill)
 	        regs[inst->rd] = (unsigned int)regs[inst->rs] >> regs[inst->rt];
 	        break;
-	    case 9: // beq
+		case 9: // beq
+	        if (regs[inst->rs] == regs[inst->rt])
+	            branch_condition = TRUE;
 	        break;
+	
 	    case 10: // bne
+	        if (regs[inst->rs] != regs[inst->rt])
+	            branch_condition = TRUE;
 	        break;
+	
 	    case 11: // blt
+	        if ((int)regs[inst->rs] < (int)regs[inst->rt])
+	            branch_condition = TRUE;
 	        break;
+	
 	    case 12: // bgt
+	        if ((int)regs[inst->rs] > (int)regs[inst->rt])
+	            branch_condition = TRUE;
 	        break;
+	
 	    case 13: // ble
+	        if ((int)regs[inst->rs] <= (int)regs[inst->rt])
+	            branch_condition = TRUE;
 	        break;
+	
 	    case 14: // bge
+	        if ((int)regs[inst->rs] >= (int)regs[inst->rt])
+	            branch_condition = TRUE;
 	        break;
 	    case 15: // jal
 	        break;
@@ -98,7 +124,15 @@ void Execute(Instruction* inst) {
 	        break;
 	    default: // need to implement
 	        break;
+
+	regs[0] = 0; // making sure $zero is unchanged
+	regs[1] = inst->imm; // making sure $imm is unchanged
 	}
+}
+
+AdvancePC(Instruction* inst) {
+	// need to also check for branch condition
+	pc += (inst_is_I_type(inst)) ? 2 : 1;
 }
 
 
@@ -106,15 +140,14 @@ int main(int argc, char *argv[])
 {
 	// PC loop. maybe it's better to first read from memin.txt and finish the while loop at EOF
 	while (pc < MEM_SIZE) {
-		Fetch();
-		Execute();
+		new_inst = Fetch();
+		Execute(&new_inst);
 	
 		// advance PC by 2 if the instruction is I-type, or by 1 if it's R-type
-		pc += (inst_is_I_type(Instruction* inst)) ? 2 : 1;
+		AdvancePC(&new_inst);
 	}
 
 	//write into all the output files at the end of the program loop
 
-	
 	return 0;
 }
