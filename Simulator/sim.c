@@ -21,8 +21,9 @@ typedef struct Instruction {
 
 // --- Variable Initialization ---
 int pc = 0;
+int pc_mask = 0xfff; // ensures pc remains 12-bits long
 unsigned int regs[16] = {0};   // R0-R15
-unsigned int io_regs[23] = {0};
+unsigned int io_regs[23] = {0}; // has to be unsigned int because we are using it bitwise
 unsigned int mainMem[MEM_SIZE] = {0}; 
 unsigned int hard_disk_arr[DISK_SIZE] = {0};
 unsigned int irq2_interrupt_cycles[MEM_SIZE] = { 0 }; // array of all the pc which has irq2in interrupt
@@ -48,6 +49,9 @@ void Execute (Instruction* inst);
 
 void AdvancePC(Instruction* inst);
 // advances pc according to the branch condition and type of the current instruction
+
+void AdvanceClock();
+// Increases clock by 1, accounts for 32-bit overflow
 
 //Fills mainMem array, based on memin.txt file
 void FillmainMem(FILE * pmemin);
@@ -154,27 +158,22 @@ void Execute(Instruction* inst_ptr) {
 	        if (regs[inst_ptr->rs] == regs[inst_ptr->rt])
 	            branch_condition = TRUE;
 	        break;
-	
 	    case 10: // bne
 	        if (regs[inst_ptr->rs] != regs[inst_ptr->rt])
 	            branch_condition = TRUE;
 	        break;
-	
 	    case 11: // blt
 	        if ((int)regs[inst_ptr->rs] < (int)regs[inst_ptr->rt])
 	            branch_condition = TRUE;
 	        break;
-	
 	    case 12: // bgt
 	        if ((int)regs[inst_ptr->rs] > (int)regs[inst_ptr->rt])
 	            branch_condition = TRUE;
 	        break;
-	
 	    case 13: // ble
 	        if ((int)regs[inst_ptr->rs] <= (int)regs[inst_ptr->rt])
 	            branch_condition = TRUE;
 	        break;
-	
 	    case 14: // bge
 	        if ((int)regs[inst_ptr->rs] >= (int)regs[inst_ptr->rt])
 	            branch_condition = TRUE;
@@ -187,19 +186,24 @@ void Execute(Instruction* inst_ptr) {
             if (inst_ptr->rd > 1) // prevents writing into $zero and $imm
                 regs[inst_ptr->rd] = signExtension(mainMem[addr]);
             break;
-
         case 17: // sw (Store Word)
             mainMem[addr] = regs[inst_ptr->rd] & mem_mask;
             break;
-	    case 18: // reti
+		case 18: // reti
+	        pc = io_regs[2];
 	        break;
 	    case 19: // in
-	        break;
+	        if (addr >= 0 && addr < 23) {
+	            if (inst_ptr->rd != 0)
+	                regs[inst_ptr->rd] = io_regs[addr];
+			}
+			break;
 	    case 20: // out
+	        if (addr >= 0 && addr < 23)
+	            io_regs[addr] = regs[inst_ptr->rd];
 	        break;
 	    case 21: // halt
-	        break;
-	    default: // need to implement
+			exit(0);
 	        break;
 	}
     
@@ -209,8 +213,12 @@ void Execute(Instruction* inst_ptr) {
 
 void AdvancePC(Instruction* inst) {
 	if (branch_condition == TRUE)
-		pc = regs[inst->rd];
-	else pc += (inst_is_I_type(inst)) ? 2 : 1;
+		pc = regs[inst->rd] & pc_mask;
+	else pc = ((pc + ((inst_is_I_type(inst)) ? 2 : 1)) | pc_mask);
+}
+
+void AdvanceClock(){
+	io_registers[8]++; // no need for overflow checks, when clock reaches 0xFFFFFFFF and 1 is added, it overflows back to 0.
 }
 
 
@@ -224,8 +232,8 @@ int main(int argc, char *argv[])
 		new_inst = Fetch();
 		Execute(&new_inst);
 	
-		// advance PC by 2 if the instruction is I-type, or by 1 if it's R-type
 		AdvancePC(&new_inst);
+		AdvanceClock();
 	}
 
 	//write into all the output files at the end of the program loop
