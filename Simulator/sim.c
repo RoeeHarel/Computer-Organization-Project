@@ -165,9 +165,7 @@ void Execute(Instruction* inst_ptr) {
 	        break;
 		case 16: // lw (Load Word)
             if (inst_ptr->rd > 1) // prevents writing into $zero and $imm
-			{
                 regs[inst_ptr->rd] = signExtension(mainMem[addr]);
-            }
             break;
 
         case 17: // sw (Store Word)
