@@ -8,23 +8,27 @@
 #define FALSE 0
 #define MEM_SIZE 4096
 #define DISK_SIZE 16384	//128 sectors * 128 lines
-
+	
+//Struct for commands fetched from memin.txt
 typedef struct Instruction {
-	unsigned int opcode;
-	unsigned int rs;
-	unsigned int rt;
-	unsigned int rd;
-	unsigned int imm;
+	unsigned int opcode; // 8 bits
+	unsigned int rd;     // 4 bits
+	unsigned int rs;     // 4 bits
+	unsigned int rt;     // 4 bits
+	int imm;    // 20 bits (signed)
+	int is_itype;
 } Instruction;
 
 // --- Variable Initialization ---
 int pc = 0;
-unsigned int regs[16] = {0};
+unsigned int regs[16] = {0};   // R0-R15
+unsigned int io_regs[23] = {0};
 unsigned int mainMem[MEM_SIZE] = {0}; 
 unsigned int hard_disk_arr[DISK_SIZE] = {0};
 unsigned int irq2_interrupt_cycles[MEM_SIZE] = { 0 }; // array of all the pc which has irq2in interrupt
 int branch_condition = FALSE; // A global variable used in the functions Execute() and AdvancePC()
-Instruction new_inst = {}; // initializing the variable for later use in Fetch()
+Instruction current_inst ; // initializing the variable for later use in Fetch()
+int interrupt_flag = 0;   // 1 if an interrupt occurred
 
 // --- Function Initialization ---
 
