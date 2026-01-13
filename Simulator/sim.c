@@ -173,6 +173,7 @@ Instruction Fetch () {
 	}
 	else
 		current_inst.imm = 0;
+	return current_inst;
 }
 
 void Execute(Instruction* inst_ptr) {
