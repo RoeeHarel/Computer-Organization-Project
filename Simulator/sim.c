@@ -95,6 +95,26 @@ void SetArrays(FILE * pdiskin, FILE * pmemin, FILE * pirq2in)
 
 Instruction Fetch () {
 	regs[1] = inst->imm; // I think this needs to be here, it affects my part of the code (Roee)
+	if (pc >= MEM_SIZE) exit(1); //handling out of range scenario
+	unsigned int line_inst = mainMem[pc];
+	current_inst.opcode = (line_inst>>12)& 0xFF; //bits 12-19
+	current_inst.rd = (line_inst>>8)& 0xF; //bits 8-11
+	current_inst.rs = (line_inst>>4)& 0xF; //bits 4-7
+	current_inst.rt = line_inst & 0xF; //bits 0-3
+	if (current_inst.rd == 1 || current_inst.rs == 1 || current_inst.rt == 1) current_inst.is_itype = 1;//if one of te registers is imm, it is of i type
+	else current_inst.is_itype = 0;
+	if (current_inst.is_itype = 1) 
+	{
+		if (pc + 1 >= MEMSIZE) exit(1);
+		int line_imm = mainMem[pc+1];
+		if (line_imm & 0x80000) // sign extension
+			current_inst.imm = line_imm || 0xFFF00000 ;
+		else
+			current_inst.imm = line_imm
+		regs[1] = current_inst.imm;
+	}
+	else
+		current_inst.imm = 0;
 }
 
 void Execute(Instruction* inst_ptr) {
