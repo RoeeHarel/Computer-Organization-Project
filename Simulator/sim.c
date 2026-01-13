@@ -26,16 +26,18 @@ unsigned int regs[16] = {0};   // R0-R15
 unsigned int io_regs[23] = {0}; // has to be unsigned int because we are using it bitwise
 unsigned int mainMem[MEM_SIZE] = {0}; 
 unsigned int hard_disk_arr[DISK_SIZE] = {0};
-unsigned int irq2_interrupt_cycles[MEM_SIZE] = { 0 }; // array of all the pc which has irq2in interrupt
+unsigned int irq2_cycles[MEM_SIZE] = { 0 }; // array of all the pc which has irq2in interrupt
 
 int branch_condition = FALSE; // A global variable used in the functions Execute() and AdvancePC()
 Instruction current_inst ; // initializing the variable for later use in Fetch()
 int interrupt_flag = 0;   // 1 if an interrupt occurred
+int clock_cycle = 0;	  // Global clock cycle counter
+int halt_condition = 0;  // Flag tp stop the simulator
 int mem_mask = 0xfffff; // ensures only the first 20 bits of a 32 bit integer are written into main memory
 
 // --- Function Initialization ---
 
-int inst_is_I_type(Instruction* inst);
+int inst_is_I_type(Instruction* inst);//should be removed, implemented by Tal on the structure
 // returns TRUE if the instruction is I-type, and FALSE if it's R-type
 
 int signExtension(int var)
@@ -62,11 +64,14 @@ void FillDiskinArr(FILE * pdiskin);
 //Fills irq2_interrupt_cycles array, based on irq2in.txt file
 void FillIrq2inArr(FILE * pirq2in);
 
+//Checks if there is an interrupt
+int CheckInterrupts();
+
 // --- Function Implementation ---
 
 // Setup Functions //
 
-int inst_is_I_type (Instruction* inst) {
+int inst_is_I_type (Instruction* inst) { 
 	return (inst->opcode >= 9 && inst->opcode <= 18) ? TRUE : FALSE;
 }
 
@@ -97,6 +102,53 @@ void SetArrays(FILE * pdiskin, FILE * pmemin, FILE * pirq2in)
 }
 // Main process functions//
 
+int CheckInterrupts() //need to be called before fetch() on main
+{
+	//Timer Logic
+	if (io_regs[11] == 1) //timerenable
+	{
+		if (io_regs[12] >= io_regs[13]) // timercurrent >= timermax
+		{
+			io_regs[3] = 1 //Set irq0status to 1
+			io_regs[12] = 0 // Reset timercurrent
+		}
+		else
+			io_regs[12]++  // Increment timercurrent
+	}
+	// 2. Disk Logic (IRQ1) NEED to be done TODO 
+	// --- 2. Disk Logic (Associated with IRQ1) ---
+    // Note for Execute Function: 
+    // When Disk Command finishes, it must set IOReg[IO_IRQ1_STATUS] = 1
+    // (Meaning: IOReg[4] = 1)
+    // Safety fallback (if Execute doesn't set it directly, though it should):
+    // if (disk_finished_condition) IOReg[IO_IRQ1_STATUS] = 1;
+
+	
+	//External Interrupt (IRQ2) Logic
+	if (clock_cycle < MEM_size && irq2_cycles[clockcycle])  // Check if an interrupt is scheduled for the current clock cycle
+	{
+		io_regs[5] = 1 //Set irq2status to 1
+	}
+
+	if (interrupt_flag) // If we are already inside an Interrupt Routine, do not interrupt again
+		return 0;
+	// Check distinct interrupts: (Enable == 1 AND Status == 1)
+    
+    int irq0_triggered = (io_regs[0] && IOReg[3]); // irq0_enable and irq0status
+    int irq1_triggered = (io_regs[1] && IOReg[4]); // irq1_enable and irq1status
+    int irq2_triggered = (io_regs[2] && IOReg[5]); // irq2_enable and irq2status
+	if (irq0_triggered || irq1_triggered || irq2_triggered) 
+	{
+		interrupt_flag = 1 //enter Interrupt Routine
+		io_regs[7] = pc;// Save Return Address (pc) to the new location
+        pc = io_regs[6];// Jump to Handler Address from the new location 
+		return 1; // pc changed
+		
+	}
+	return 0
+	
+}
+
 Instruction Fetch () {
 	regs[1] = inst->imm; // I think this needs to be here, it affects my part of the code (Roee)
 	if (pc >= MEM_SIZE) exit(1); //handling out of range scenario
@@ -105,11 +157,13 @@ Instruction Fetch () {
 	current_inst.rd = (line_inst>>8)& 0xF; //bits 8-11
 	current_inst.rs = (line_inst>>4)& 0xF; //bits 4-7
 	current_inst.rt = line_inst & 0xF; //bits 0-3
-	if (current_inst.rd == 1 || current_inst.rs == 1 || current_inst.rt == 1) current_inst.is_itype = 1;//if one of te registers is imm, it is of i type
+	if (current_inst.rd == 1 || current_inst.rs == 1 || current_inst.rt == 1) //if one of te registers is imm, it is of i type
+		current_inst.is_itype = 1;
 	else current_inst.is_itype = 0;
 	if (current_inst.is_itype = 1) 
 	{
-		if (pc + 1 >= MEMSIZE) exit(1);
+		if (pc + 1 >= MEMSIZE)
+			exit(1);
 		int line_imm = mainMem[pc+1];
 		if (line_imm & 0x80000) // sign extension
 			current_inst.imm = line_imm || 0xFFF00000 ;
