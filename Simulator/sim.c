@@ -237,11 +237,11 @@ void Execute(Instruction* inst_ptr) {
 			regs[inst_ptr->rd] = pc + (inst_is_I_type(inst)) ? 2 : 1; // copied from AdvancePC()
 			pc = regs[inst_ptr->rs];
 	        break;
-		case 16: // lw (Load Word)
+		case 16: // lw
             if (inst_ptr->rd > 1) // prevents writing into $zero and $imm
                 regs[inst_ptr->rd] = signExtension(mainMem[addr]);
             break;
-        case 17: // sw (Store Word)
+        case 17: // sw
             mainMem[addr] = regs[inst_ptr->rd] & mem_mask;
             break;
 		case 18: // reti
