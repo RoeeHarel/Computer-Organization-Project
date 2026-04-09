@@ -179,9 +179,10 @@ void first_pass(FILE *input) {
     if (parse_line(instruction_start, opcode, rd, rs, rt, imm)) {
       int rs_id = get_register_id(rs);
       int rt_id = get_register_id(rt);
+      int rd_id = get_register_id(rd);
 
       // if using $imm (index 1), we need 2 words
-      if (rs_id == 1 || rt_id == 1) {
+      if (rs_id == 1 || rt_id == 1 || rd_id == 1) {
         PC += 2;
       } else {
         PC += 1;
@@ -290,7 +291,7 @@ void second_pass(FILE *input) {
       memory[PC] = word1;
 
       // check if we need extra word for imm
-      if (rs == 1 || rt == 1) {
+      if (rs == 1 || rt == 1 || rd == 1) {
         PC++;
         memory[PC] = imm_val & 0xFFFFF;
         PC++;
