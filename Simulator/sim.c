@@ -1,3 +1,7 @@
+// Disable Visual Studio security warnings for standard C functions
+#define _CRT_SECURE_NO_WARNINGS
+#define _CRT_NONSTDC_NO_WARNINGS
+
 #include "sim.h"
 
 // Constants
@@ -52,17 +56,27 @@ int signExtension(int val) {
     return val & 0xFFFFF;
 }
 
-void FillMainMem(FILE *pmemin) {
+void FillMainMem(FILE* pmemin) {
     if (!pmemin) return;
-    
+
     char line[MAX_LINE_LENGTH];
     int addr = 0;
-    
+
     while (fgets(line, sizeof(line), pmemin) && addr < MEM_SIZE) {
         unsigned int value;
+        // Try parsing hex directly
         if (sscanf(line, "%x", &value) == 1) {
             mainMem[addr] = value & MEM_MASK;
             addr++;
+        }
+        // If failed, check if it's a "[source...]" line and try to find the hex code after it
+        else {
+            // Look for the closing bracket ']' which usually precedes the code
+            char* codeStart = strchr(line, ']');
+            if (codeStart && sscanf(codeStart + 1, "%x", &value) == 1) {
+                mainMem[addr] = value & MEM_MASK;
+                addr++;
+            }
         }
     }
 }
@@ -236,8 +250,9 @@ Instruction Fetch() {
     if (current_inst.rd == 1 || current_inst.rs == 1 || current_inst.rt == 1) {
         current_inst.is_itype = 1;
         
-        if (pc + 1 >= MEM_SIZE) {
-            printf("Error: PC+1 out of range for I-type instruction\n");
+        // Bounds check for PC+1
+        if (pc + 1 >= MEM_SIZE || pc + 1 < 0) {
+            printf("Error: PC+1 (%d) out of range for I-type instruction\n", pc + 1);
             exit(1);
         }
         
@@ -393,14 +408,16 @@ void Execute(Instruction *inst) {
     regs[1] = inst->imm;
 }
 
-void AdvancePC(Instruction *inst) {
-    if (inst->opcode == 15) { // jal already set PC
+void AdvancePC(Instruction* inst) {
+    if (inst->opcode == 15 || inst->opcode == 18) {
         return;
     }
-    
+
     if (branch_condition == TRUE) {
         pc = regs[inst->rd] & PC_MASK;
-    } else {
+    }
+    else {
+        // If I-type (including beq with rd=$imm), skip the immediate word
         pc = (pc + (inst->is_itype ? 2 : 1)) & PC_MASK;
     }
 }
@@ -547,9 +564,13 @@ int main(int argc, char *argv[]) {
         printf("Error: Could not open output files\n");
         return 1;
     }
+    // Set maximum cycles to prevent infinite loops
+    // Reasonable limit: 100,000 cycles for simple programs
+    // For complex programs, increase this value
+    #define MAX_CYCLES 1000000
     
     // Main simulation loop
-    while (!halt_condition && pc < MEM_SIZE) {
+    while (!halt_condition && pc < MEM_SIZE && clock_cycle < MAX_CYCLES) {
         // Handle disk operations
         HandleDiskOperation();
         
@@ -572,6 +593,13 @@ int main(int argc, char *argv[]) {
         
         // Advance clock
         AdvanceClock();
+    }
+    
+    // Check if stopped due to max cycles (infinite loop protection)
+    if (clock_cycle >= MAX_CYCLES && !halt_condition) {
+        printf("WARNING: Simulation stopped after %d cycles (possible infinite loop)\n", MAX_CYCLES);
+        printf("Last PC: 0x%03X\n", pc);
+        printf("If this is intentional, increase MAX_CYCLES in sim.c\n");
     }
     
     // Close trace files
